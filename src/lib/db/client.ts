@@ -8,7 +8,7 @@ export type DB = BetterSQLite3Database<typeof schema>;
 
 const DB_PATH = process.env.THIRTY_DB_PATH ?? path.join(process.cwd(), "data", "thirty.db");
 
-const globalForDb = globalThis as unknown as { __thirtyDb?: DB };
+const globalForDb = globalThis as unknown as { __thirtyDb?: DB; __thirtySqlite?: Database.Database };
 
 export function getDb(): DB {
   if (globalForDb.__thirtyDb) return globalForDb.__thirtyDb;
@@ -18,7 +18,15 @@ export function getDb(): DB {
   sqlite.pragma("foreign_keys = ON");
   const db = drizzle(sqlite, { schema });
   globalForDb.__thirtyDb = db;
+  globalForDb.__thirtySqlite = sqlite;
   return db;
+}
+
+/** Closes the connection (needed on Windows before the db file can be replaced). */
+export function closeDb(): void {
+  globalForDb.__thirtySqlite?.close();
+  globalForDb.__thirtySqlite = undefined;
+  globalForDb.__thirtyDb = undefined;
 }
 
 export function now(): string {
