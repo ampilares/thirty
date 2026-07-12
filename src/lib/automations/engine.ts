@@ -6,6 +6,13 @@ import {
   automationRuns,
   approvals,
   companies,
+  people,
+  deals,
+  tickets,
+  invoices,
+  quotes,
+  projects,
+  payments,
   type AutomationCondition,
   type AutomationAction,
 } from "../db/schema";
@@ -16,8 +23,47 @@ import { writeAudit } from "../audit";
 import { createTask } from "../core/delivery";
 import { addNote } from "../core/customers";
 import { createTicket, updateTicket } from "../core/support";
+import { maskSmsPhone, normalizeSmsPhone, sendSmsViaSelfhostSim } from "../messaging/selfhostsim";
 
 export type StepResult = { action: string; detail: string; ok: boolean };
+
+function relatedPersonId(entityType: string, entityId: number, payload: Record<string, unknown>): number | null {
+  if (typeof payload.personId === "number") return payload.personId;
+  const db = getDb();
+  const firstAtCompany = (companyId: number | null | undefined) => companyId ? db.select().from(people).where(eq(people.companyId, companyId)).get()?.id ?? null : null;
+  if (entityType === "person") return entityId;
+  if (entityType === "company") return firstAtCompany(entityId);
+  if (entityType === "deal") { const row = db.select().from(deals).where(eq(deals.id, entityId)).get(); return row?.personId ?? firstAtCompany(row?.companyId); }
+  if (entityType === "ticket") { const row = db.select().from(tickets).where(eq(tickets.id, entityId)).get(); return row?.personId ?? firstAtCompany(row?.companyId); }
+  if (entityType === "invoice") { const row = db.select().from(invoices).where(eq(invoices.id, entityId)).get(); return row?.personId ?? firstAtCompany(row?.companyId); }
+  if (entityType === "quote") { const row = db.select().from(quotes).where(eq(quotes.id, entityId)).get(); return row?.personId ?? firstAtCompany(row?.companyId); }
+  if (entityType === "payment") {
+    const payment = db.select().from(payments).where(eq(payments.id, entityId)).get();
+    if (!payment) return null;
+    const invoice = db.select().from(invoices).where(eq(invoices.id, payment.invoiceId)).get();
+    return invoice?.personId ?? firstAtCompany(invoice?.companyId);
+  }
+  if (entityType === "project") {
+    const project = db.select().from(projects).where(eq(projects.id, entityId)).get();
+    if (!project) return null;
+    const deal = project.dealId ? db.select().from(deals).where(eq(deals.id, project.dealId)).get() : null;
+    return deal?.personId ?? firstAtCompany(project.companyId ?? deal?.companyId);
+  }
+  return null;
+}
+
+function resolveSmsContext(entityType: string, entityId: number, payload: Record<string, unknown>, recipientSource: unknown) {
+  const source = String(recipientSource ?? "contact.phone");
+  const explicit = source.startsWith("number:") ? source.slice(7) : source === "payload.phone" ? String(payload.phone ?? "") : "";
+  const personId = relatedPersonId(entityType, entityId, payload);
+  const person = personId ? getDb().select().from(people).where(eq(people.id, personId)).get() : null;
+  const phone = explicit || person?.phone || (typeof payload.phone === "string" ? payload.phone : "");
+  if (!phone) throw new Error(`No mobile number found for the related contact on ${entityType} #${entityId}`);
+  return {
+    phone: normalizeSmsPhone(phone),
+    variables: { ...payload, personId: person?.id ?? personId, firstName: person?.firstName, lastName: person?.lastName, phone },
+  };
+}
 
 // ---------- pure evaluation (unit-tested) ----------
 
@@ -127,21 +173,25 @@ async function runAction(
       return { action: action.type, detail, ok: true };
     }
     case "send_message": {
-      // MVP: outbound messages are logged, not delivered (no email provider connected).
-      const body = interpolate(String(p.body ?? ""), payload, evt.entityId);
-      const detail = `Send message (logged, no provider connected): "${body.slice(0, 80)}"`;
+      const sms = resolveSmsContext(evt.entityType, evt.entityId, payload, p.recipientSource ?? p.to);
+      const body = interpolate(String(p.body ?? ""), sms.variables, evt.entityId).trim();
+      if (!body) return { action: action.type, detail: "SMS message is empty", ok: false };
+      const recipient = maskSmsPhone(sms.phone);
+      let detail = `Would send SMS to ${recipient}: "${body.slice(0, 80)}"`;
       if (execute) {
+        const result = await sendSmsViaSelfhostSim({ phone: sms.phone, message: body });
+        detail = `SMS queued to ${recipient}${result.batchId ? ` · batch ${result.batchId}` : ""}`;
         writeAudit({
           actor,
           action: "execute",
-          entityType: evt.entityType,
+          entityType: "sms",
           entityId: evt.entityId,
-          entityLabel: `Outbound message (logged)`,
-          after: { body, template: p.template ?? null },
+          entityLabel: `SMS to ${recipient}`,
+          after: { provider: "selfhostsim", channel: "sms", recipient, body, batchId: result.batchId, status: "queued" },
           correlationType: correlation?.type,
           correlationId: correlation?.id,
         });
-        await addNote(actor, evt.entityType, evt.entityId, `📤 Outbound message (logged): ${body}`);
+        await addNote(actor, evt.entityType, evt.entityId, `📱 SMS queued to ${recipient}: ${body}`);
       }
       return { action: action.type, detail, ok: true };
     }

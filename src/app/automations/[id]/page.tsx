@@ -1,104 +1,47 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq, desc } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { automations, automationRuns, automationVersions } from "@/lib/db/schema";
-import { PageHeader, Card, Badge, EmptyState, fmtDateTime, inputClass, btnPrimary, btnSecondary } from "@/components/ui";
+import { Badge, fmtDateTime, btnPrimary, btnSecondary } from "@/components/ui";
 import { AutomationForm } from "@/components/AutomationForm";
 import { updateAutomationAction, publishAutomationAction, simulateAutomationAction, toggleAutomationAction } from "@/app/actions";
 
-export default async function AutomationPage({ params }: { params: Promise<{ id: string }> }) {
+const actionLabels: Record<string,string> = { create_task:"Create task",update_field:"Update field",add_tag:"Add contact tag",add_note:"Add note",create_ticket:"Create ticket",send_message:"Send message",request_approval:"Request approval",escalate_ticket:"Escalate ticket" };
+
+export default async function AutomationPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const { id } = await params;
+  const { tab = "builder" } = await searchParams;
   const db = getDb();
   const automation = db.select().from(automations).where(eq(automations.id, Number(id))).get();
   if (!automation) notFound();
   const runs = db.select().from(automationRuns).where(eq(automationRuns.automationId, automation.id)).orderBy(desc(automationRuns.id)).limit(30).all();
   const versions = db.select().from(automationVersions).where(eq(automationVersions.automationId, automation.id)).orderBy(desc(automationVersions.version)).all();
+  const href=(next:string)=>`/automations/${automation.id}?tab=${next}`;
 
-  return (
-    <>
-      <PageHeader
-        title={automation.name}
-        subtitle={automation.description ?? undefined}
-        actions={
-          <div className="flex items-center gap-2">
-            <Badge value={automation.enabled ? "active" : "draft"} label={automation.enabled ? `published v${automation.currentVersion}` : automation.currentVersion > 0 ? `paused v${automation.currentVersion}` : "draft"} />
-            {automation.currentVersion > 0 && (
-              <form action={toggleAutomationAction}>
-                <input type="hidden" name="automationId" value={automation.id} />
-                <input type="hidden" name="to" value={automation.enabled ? "off" : "on"} />
-                <button className={btnSecondary}>{automation.enabled ? "Pause" : "Resume"}</button>
-              </form>
-            )}
-          </div>
-        }
-      />
+  return <div className="flex min-h-full flex-col bg-[#f6f8fb]">
+    <header className="border-b border-slate-200 bg-white">
+      <div className="flex h-14 items-center gap-4 px-5"><Link href="/automations" className="text-sm font-medium text-slate-600">← Workflows list</Link><span className="h-6 w-px bg-slate-200"/><div className="min-w-0 flex-1 text-center"><h1 className="truncate text-sm font-semibold">{automation.name} <span className="ml-1 text-slate-400">✎</span></h1></div><span className="ghl-avatar">AR</span><button type="button" className="toolbar-control">◷</button><button disabled type="button" className="toolbar-control opacity-40">↶</button><button disabled type="button" className="toolbar-control opacity-40">↷</button><span className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-600">Saved</span></div>
+      <div className="flex items-center justify-between border-t border-slate-100 px-5"><select className="toolbar-control my-2 w-[170px]"><option>Standard builder</option></select><nav className="flex h-12 items-end gap-7">{[["builder","Builder"],["settings","Settings"],["enrollments","Enrollment history"],["logs","Execution logs"]].map(([value,label])=><Link key={value} href={href(value)} className={`border-b-2 px-1 pb-3 text-xs ${tab===value?"border-blue-600 font-semibold text-blue-700":"border-transparent text-slate-500"}`}>{label}</Link>)}</nav><div className="flex items-center gap-3"><form action={simulateAutomationAction}><input type="hidden" name="automationId" value={automation.id}/><button className="text-xs font-semibold text-blue-600">Test workflow</button></form><span className="text-xs text-slate-500">Draft</span><form action={toggleAutomationAction}><input type="hidden" name="automationId" value={automation.id}/><input type="hidden" name="to" value={automation.enabled?"off":"on"}/><button className={`relative h-6 w-11 rounded-full ${automation.enabled?"bg-blue-600":"bg-slate-300"}`} aria-label={automation.enabled?"Unpublish":"Publish"}><span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition ${automation.enabled?"right-1":"left-1"}`}/></button></form><span className="text-xs font-semibold text-slate-700">Publish</span></div></div>
+    </header>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <div className="space-y-4">
-          <Card title="Definition (editing creates unpublished changes — publish to activate them)">
-            <AutomationForm action={updateAutomationAction} existing={automation} />
-          </Card>
-          <Card title="Safety rails">
-            <div className="flex flex-wrap items-end gap-3">
-              <form action={simulateAutomationAction}>
-                <input type="hidden" name="automationId" value={automation.id} />
-                <button className={btnSecondary}>▶ Simulate against recent data</button>
-              </form>
-              <form action={publishAutomationAction} className="flex items-end gap-2">
-                <input type="hidden" name="automationId" value={automation.id} />
-                <label className="text-sm">
-                  <span className="mb-1 block text-xs font-medium text-neutral-500">Publish notes</span>
-                  <input name="notes" placeholder="what changed?" className={inputClass} />
-                </label>
-                <button className={btnPrimary}>Publish v{automation.currentVersion + 1}</button>
-              </form>
-            </div>
-            <p className="mt-2 text-xs text-neutral-400">
-              Simulation replays the most recent matching event with zero side effects — predicted actions appear in run history marked “simulated”. Publishing snapshots an immutable version and enables the automation.
-            </p>
-          </Card>
-          {versions.length > 0 && (
-            <Card title={`Versions (${versions.length})`}>
-              <ul className="divide-y divide-neutral-100 text-sm">
-                {versions.map((v) => (
-                  <li key={v.id} className="flex items-center justify-between py-2">
-                    <span>v{v.version} {v.version === automation.currentVersion && <Badge value="active" label="current" />}</span>
-                    <span className="text-xs text-neutral-400">{v.publishNotes ?? "—"} · {fmtDateTime(v.publishedAt)}</span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
+    {tab === "builder" && <div className="relative flex min-h-[650px] flex-1 overflow-hidden">
+      <aside className="flex w-14 shrink-0 flex-col items-center gap-4 border-r border-slate-200 bg-white py-4 text-slate-500">{['◯','✓','◷','▱','↗','⌕','⟳','✦'].map((i,index)=><button key={index} type="button" className={`flex h-8 w-8 items-center justify-center rounded-lg ${index===7?"bg-violet-50 text-violet-600":"hover:bg-slate-100"}`}>{i}</button>)}</aside>
+      <div className="pane-scroll relative flex-1 overflow-auto bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px]">
+        <div className="mx-auto flex w-[430px] flex-col items-center py-10">
+          <div className="w-[290px] rounded-xl border-2 border-blue-200 bg-white p-4 shadow-sm"><div className="flex items-start gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">⚡</span><div><p className="text-[10px] font-semibold uppercase tracking-wide text-blue-500">Workflow trigger</p><h3 className="mt-1 text-sm font-semibold">{automation.trigger.replaceAll("."," → ")}</h3><p className="mt-1 text-[10px] text-slate-400">Starts when this event is received</p></div></div></div>
+          {(automation.conditions??[]).map((condition,index)=><div key={`c${index}`} className="flex flex-col items-center"><span className="h-8 w-px bg-slate-300"/><div className="w-[270px] rounded-xl border border-amber-200 bg-white p-3 shadow-sm"><p className="text-[10px] font-semibold uppercase text-amber-600">Condition</p><p className="mt-1 text-xs font-semibold">{condition.field} {condition.op.replaceAll("_"," ")} {String(condition.value??"")}</p></div></div>)}
+          {(automation.actions??[]).map((action,index)=><div key={index} className="flex flex-col items-center"><span className="h-8 w-px bg-slate-300"/><button type="button" className="group w-[300px] rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-blue-300 hover:shadow-md"><div className="flex items-start gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-600">{action.type==="send_message"?"✉":action.type==="add_tag"?"◆":"✓"}</span><div className="min-w-0 flex-1"><p className="text-[10px] font-semibold uppercase tracking-wide text-violet-500">Action {index+1}</p><h3 className="mt-1 text-sm font-semibold">{actionLabels[action.type]??action.type}</h3><p className="mt-1 truncate text-[10px] text-slate-400">{Object.values(action.params).join(" · ")||"Configured action"}</p></div><span className="text-slate-300 group-hover:text-slate-500">⋮</span></div></button></div>)}
+          <span className="h-8 w-px bg-slate-300"/><Link href={href("settings")} className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-blue-500 bg-white text-blue-600 shadow-sm">＋</Link><span className="mt-2 text-[10px] text-slate-400">Add action</span>
         </div>
-
-        <Card title={`Run history (${runs.length})`}>
-          {runs.length === 0 ? <EmptyState text="No runs yet — simulate or wait for the trigger." /> : (
-            <ul className="space-y-3">
-              {runs.map((r) => (
-                <li key={r.id} className="rounded-lg border border-neutral-100 p-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2">
-                      <Badge value={r.status} />
-                      <code className="text-xs text-neutral-500">{r.eventType}</code>
-                      {r.version > 0 && <span className="text-xs text-neutral-400">v{r.version}</span>}
-                    </span>
-                    <time className="text-xs text-neutral-400">{fmtDateTime(r.startedAt)}</time>
-                  </div>
-                  <ol className="mt-2 space-y-1 text-xs text-neutral-600">
-                    {(r.steps ?? []).map((step, i) => (
-                      <li key={i} className="flex gap-1.5">
-                        <span className={step.ok ? "text-emerald-500" : "text-red-500"}>{step.ok ? "✓" : "✗"}</span>
-                        <span><span className="font-medium">{step.action}</span> — {step.detail}</span>
-                      </li>
-                    ))}
-                  </ol>
-                  {r.error && <p className="mt-1 text-xs text-red-600">{r.error}</p>}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+        <div className="fixed bottom-6 left-[300px] flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg"><button className="border-b border-slate-100 p-3">☝</button><button className="border-b border-slate-100 p-3">＋</button><span className="border-b border-slate-100 px-2 py-3 text-[10px]">100%</span><button className="border-b border-slate-100 p-3">−</button><button className="p-3">⛶</button></div>
+        <div className="fixed bottom-6 right-6 h-24 w-36 rounded-lg border border-slate-200 bg-white/90 p-3 shadow-lg"><div className="mx-auto mt-2 h-3 w-20 rounded bg-slate-200"/><div className="mx-auto mt-2 h-3 w-16 rounded bg-slate-200"/><div className="mx-auto mt-2 h-3 w-20 rounded bg-slate-200"/></div>
       </div>
-    </>
-  );
+      <aside className="w-[250px] shrink-0 border-l border-slate-200 bg-white p-4"><div className="flex items-center justify-between"><h2 className="text-sm font-semibold">Workflow status</h2><Badge value={automation.enabled?"active":"draft"} label={automation.enabled?"Published":"Draft"}/></div><dl className="mt-5 space-y-4 text-xs"><div><dt className="text-slate-400">Current version</dt><dd className="mt-1 font-semibold">v{automation.currentVersion||1}</dd></div><div><dt className="text-slate-400">Actions</dt><dd className="mt-1 font-semibold">{automation.actions?.length??0}</dd></div><div><dt className="text-slate-400">Conditions</dt><dd className="mt-1 font-semibold">{automation.conditions?.length??0}</dd></div><div><dt className="text-slate-400">Total runs</dt><dd className="mt-1 font-semibold">{runs.length}</dd></div></dl><div className="mt-6 rounded-lg bg-blue-50 p-3 text-[11px] leading-5 text-blue-800">Draft changes are saved through Settings. Publishing creates an immutable version used by future executions.</div></aside>
+    </div>}
+
+    {tab === "settings" && <div className="module-content mx-auto w-full max-w-5xl"><div className="grid gap-5 lg:grid-cols-[1fr_320px]"><section className="surface-card p-5"><h2 className="mb-4 text-sm font-semibold">Workflow definition</h2><AutomationForm action={updateAutomationAction} existing={automation}/></section><aside className="space-y-4"><section className="surface-card p-4"><h2 className="text-sm font-semibold">Publish changes</h2><p className="mt-2 text-xs leading-5 text-slate-500">Create an immutable version after reviewing trigger, conditions and actions.</p><form action={publishAutomationAction} className="mt-4 space-y-2"><input type="hidden" name="automationId" value={automation.id}/><input name="notes" placeholder="What changed?" className="toolbar-control w-full"/><button className={`${btnPrimary} w-full justify-center`}>Publish v{automation.currentVersion+1}</button></form></section><section className="surface-card p-4"><h2 className="text-sm font-semibold">Version history</h2><ul className="mt-3 space-y-2">{versions.map(v=><li key={v.id} className="flex justify-between border-b border-slate-100 pb-2 text-xs"><span className="font-semibold">v{v.version}</span><span className="text-slate-400">{fmtDateTime(v.publishedAt)}</span></li>)}</ul></section></aside></div></div>}
+
+    {(tab === "enrollments" || tab === "logs") && <div className="module-content"><div className="surface-card overflow-hidden"><div className="flex items-center justify-between border-b border-slate-200 p-4"><div><h2 className="text-sm font-semibold">{tab === "enrollments" ? "Enrollment history" : "Execution logs"}</h2><p className="mt-1 text-xs text-slate-400">Every workflow run is retained with its immutable version and step results.</p></div><form action={simulateAutomationAction}><input type="hidden" name="automationId" value={automation.id}/><button className={btnSecondary}>▶ Run safe simulation</button></form></div><table className="ghl-table"><thead><tr><th>Run</th><th>Event</th><th>Version</th><th>Status</th><th>Steps</th><th>Started</th></tr></thead><tbody>{runs.map(r=><tr key={r.id}><td className="font-semibold">#{r.id}</td><td><code className="text-[11px]">{r.eventType}</code></td><td>v{r.version||"draft"}</td><td><Badge value={r.status}/></td><td>{r.steps?.length??0}{r.error&&<span className="ml-2 text-red-500">{r.error}</span>}</td><td>{fmtDateTime(r.startedAt)}</td></tr>)}</tbody></table>{!runs.length&&<div className="py-20 text-center text-sm text-slate-400">No runs yet — simulate or wait for the trigger.</div>}</div></div>}
+  </div>;
 }

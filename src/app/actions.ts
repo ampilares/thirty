@@ -287,7 +287,7 @@ export async function addTicketMessageAction(form: FormData) {
 
 function parseAutomationForm(form: FormData): { name: string; description?: string; trigger: string; conditions: AutomationCondition[]; actions: AutomationAction[] } {
   const conditions: AutomationCondition[] = [];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) {
     const field = str(form, `cond_field_${i}`);
     const op = str(form, `cond_op_${i}`) as AutomationCondition["op"];
     if (!field || !op) continue;
@@ -295,7 +295,7 @@ function parseAutomationForm(form: FormData): { name: string; description?: stri
     conditions.push({ field, op, ...(op === "is_set" || op === "not_set" ? {} : { value }) });
   }
   const actions: AutomationAction[] = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 8; i++) {
     const type = str(form, `action_type_${i}`) as AutomationAction["type"];
     if (!type) continue;
     const params: Record<string, string | number> = {};
@@ -310,7 +310,12 @@ function parseAutomationForm(form: FormData): { name: string; description?: stri
       case "add_note":
       case "send_message":
         params.body = p1 || "";
-        if (type === "send_message") params.template = "custom";
+        if (type === "send_message") {
+          params.template = "custom";
+          params.channel = "sms";
+          params.provider = "selfhostsim";
+          params.recipientSource = p2 || "contact.phone";
+        }
         break;
       case "add_tag":
         params.tag = p1 || "flagged";
@@ -339,6 +344,9 @@ function parseAutomationForm(form: FormData): { name: string; description?: stri
 export async function createAutomationAction(form: FormData) {
   ensureBootstrap();
   const def = parseAutomationForm(form);
+  if (!def.name) throw new Error("Workflow name is required");
+  if (!def.trigger) throw new Error("A workflow trigger is required");
+  if (def.actions.length === 0) throw new Error("A workflow needs at least one action");
   const db = getDb();
   const t = now();
   const row = db
@@ -355,6 +363,9 @@ export async function updateAutomationAction(form: FormData) {
   ensureBootstrap();
   const id = num(form, "automationId");
   const def = parseAutomationForm(form);
+  if (!def.name) throw new Error("Workflow name is required");
+  if (!def.trigger) throw new Error("A workflow trigger is required");
+  if (def.actions.length === 0) throw new Error("A workflow needs at least one action");
   const db = getDb();
   const before = db.select().from(automations).where(eq(automations.id, id)).get();
   if (!before) throw new Error("Automation not found");

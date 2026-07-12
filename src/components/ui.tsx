@@ -1,6 +1,30 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+export type ModuleTab = { label: string; href: string; active?: boolean; badge?: string };
+
+export function ModuleHeader({ title, tabs, actions }: { title: string; tabs: ModuleTab[]; actions?: ReactNode }) {
+  return (
+    <header className="module-header">
+      <div className="module-title-row">
+        <h1 className="module-title">{title}</h1>
+        {actions && <div className="flex items-center gap-2 pb-2">{actions}</div>}
+      </div>
+      <nav className="module-tabs" aria-label={`${title} sections`}>
+        {tabs.map((tab) => (
+          <Link key={`${tab.href}-${tab.label}`} href={tab.href} className={`module-tab ${tab.active ? "is-active" : ""}`}>
+            {tab.label}{tab.badge && <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">{tab.badge}</span>}
+          </Link>
+        ))}
+      </nav>
+    </header>
+  );
+}
+
+export function ToolbarSearch({ name = "q", defaultValue, placeholder }: { name?: string; defaultValue?: string; placeholder: string }) {
+  return <label className="toolbar-search"><span className="text-slate-400">⌕</span><input name={name} defaultValue={defaultValue} placeholder={placeholder} /></label>;
+}
+
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-3">

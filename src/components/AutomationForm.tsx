@@ -27,7 +27,7 @@ const OPS = ["eq", "neq", "contains", "gt", "lt", "gte", "lte", "is_set", "not_s
 const ACTION_TYPES: { value: string; label: string; p1: string; p2?: string }[] = [
   { value: "create_task", label: "Create task", p1: "Task title (use {name}, {id}, {number}…)", p2: "Due in days" },
   { value: "add_note", label: "Add note", p1: "Note body" },
-  { value: "send_message", label: "Send message (logged)", p1: "Message body" },
+  { value: "send_message", label: "Send SMS (SelfhostSim)", p1: "Message body", p2: "Recipient: contact.phone, payload.phone, or number:+…" },
   { value: "add_tag", label: "Tag the company", p1: "Tag" },
   { value: "create_ticket", label: "Create ticket", p1: "Subject", p2: "Priority (low/normal/high/urgent)" },
   { value: "escalate_ticket", label: "Escalate ticket", p1: "—" },
@@ -63,7 +63,7 @@ export function AutomationForm({ action, existing }: { action: (form: FormData) 
       <fieldset className="rounded-lg border border-neutral-200 p-3">
         <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">If all of these match (optional)</legend>
         <div className="space-y-2">
-          {[0, 1, 2].map((i) => {
+          {[0, 1, 2, 3, 4].map((i) => {
             const c = conds[i];
             return (
               <div key={i} className="grid grid-cols-[1fr_140px_1fr] gap-2">
@@ -82,11 +82,11 @@ export function AutomationForm({ action, existing }: { action: (form: FormData) 
       <fieldset className="rounded-lg border border-neutral-200 p-3">
         <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Then do (in order)</legend>
         <div className="space-y-2">
-          {[0, 1, 2, 3].map((i) => {
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
             const a = acts[i];
             const p = (a?.params ?? {}) as Record<string, unknown>;
             const p1Default = a ? String(p.title ?? p.body ?? p.tag ?? p.subject ?? p.field ?? "") : "";
-            const p2Default = a ? String(p.dueInDays ?? p.priority ?? p.description ?? p.value ?? "") : "";
+            const p2Default = a ? String(p.dueInDays ?? p.priority ?? p.description ?? p.value ?? p.recipientSource ?? "") : "";
             return (
               <div key={i} className="grid grid-cols-[190px_1fr_150px] gap-2">
                 <select name={`action_type_${i}`} defaultValue={a?.type ?? (i === 0 ? "create_task" : "")} className={inputClass}>

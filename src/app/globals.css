@@ -1,14 +1,74 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f7f5;
-  --foreground: #1a1a18;
+  --background: #f6f8fb;
+  --foreground: #172033;
+  --sidebar: #30394d;
+  --sidebar-active: #20283a;
+  --primary: #2867e8;
+  --border: #e1e6ee;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-feature-settings: "cv02", "cv03";
+}
+
+button, input, select, textarea { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+
+.ghl-sidebar { width: 224px; flex: 0 0 224px; height: 100vh; display: flex; flex-direction: column; color: #cbd5e1; background: var(--sidebar); border-right: 1px solid #263044; }
+.ghl-brand { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px; }
+.ghl-logo { display: flex; height: 34px; width: 34px; align-items: center; justify-content: center; border-radius: 10px; background: linear-gradient(145deg,#2f75ed,#47c68b); color: white; font-size: 13px; font-weight: 800; box-shadow: 0 8px 18px #11182755; }
+.ghl-workspace-switcher { margin: 4px 9px 10px; display: flex; align-items: center; gap: 9px; border-radius: 9px; border: 1px solid #526075; background: #3a455b; padding: 8px; }
+.ghl-sidebar-search { margin: 0 9px 11px; display: flex; align-items: center; gap: 8px; border-radius: 8px; border: 1px solid #526075; background: #354055; padding: 7px 9px; color: #d7deea; font-size: 12px; }
+.ghl-sidebar-search kbd, .ghl-global-search kbd { border: 1px solid #cbd5e1; border-radius: 4px; padding: 0 4px; font-size: 10px; color: #94a3b8; }
+.ghl-nav-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: 0 8px 12px; }
+.ghl-nav-item { display: flex; align-items: center; gap: 10px; margin: 2px 0; border-radius: 7px; padding: 8px 10px; color: #d0d7e3; font-size: 13px; transition: .15s ease; }
+.ghl-nav-item:hover { background: #39455a; color: white; }
+.ghl-nav-item.is-active { background: var(--sidebar-active); color: white; box-shadow: inset 3px 0 #3b82f6; }
+.ghl-nav-icon { width: 17px; text-align: center; color: #aeb9ca; font-size: 15px; }
+.ghl-nav-rule { height: 1px; background: #64708480; margin: 12px 8px; }
+.ghl-global-header { height: 54px; flex: 0 0 54px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: white; padding: 0 22px; }
+.ghl-global-search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 8px; background: #f8fafc; padding: 6px 9px; }
+.ghl-global-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; font-size: 12px; color: #334155; }
+.ghl-round-action { display: flex; height: 30px; width: 30px; align-items: center; justify-content: center; border-radius: 999px; color: white; font-size: 12px; box-shadow: 0 2px 5px #0f172a18; }
+.ghl-ai-action { display: inline-flex; height: 32px; align-items: center; gap: 5px; border-radius: 999px; background: #6d37d7; padding: 0 13px; color: white; font-size: 12px; font-weight: 650; }
+.ghl-avatar { display: flex; height: 32px; width: 32px; align-items: center; justify-content: center; border-radius: 999px; background: #7281a2; color: white; font-size: 11px; }
+.module-shell { min-height: 100%; background: #f6f8fb; }
+.module-header { border-bottom: 1px solid var(--border); background: white; padding: 0 24px; }
+.module-title-row { display: flex; min-height: 52px; align-items: flex-end; justify-content: space-between; gap: 16px; padding-top: 11px; }
+.module-title { padding-bottom: 10px; font-size: 20px; font-weight: 650; letter-spacing: -.02em; color: #141c2b; }
+.module-tabs { display: flex; gap: 28px; overflow-x: auto; }
+.module-tab { position: relative; padding: 11px 0 12px; white-space: nowrap; color: #526074; font-size: 13px; }
+.module-tab:hover { color: #1f2937; }
+.module-tab.is-active { color: #2462bd; font-weight: 550; }
+.module-tab.is-active:after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: #55b7d3; }
+.module-content { padding: 20px 24px 28px; }
+.work-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.toolbar-control { display: inline-flex; min-height: 36px; align-items: center; gap: 7px; border: 1px solid var(--border); border-radius: 8px; background: white; padding: 0 12px; color: #3f4a5a; font-size: 12px; box-shadow: 0 1px 2px #0f172a08; }
+.toolbar-control:hover { border-color: #bdc7d5; background: #fbfcfe; }
+.toolbar-control.is-active { border-color: #a8c5f3; background: #f2f7ff; color: #1d5fbf; }
+.toolbar-search { display: flex; min-height: 36px; min-width: 230px; align-items: center; gap: 7px; border: 1px solid var(--border); border-radius: 8px; background: white; padding: 0 11px; }
+.toolbar-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; font-size: 12px; }
+.primary-cta { display: inline-flex; min-height: 36px; align-items: center; gap: 7px; border-radius: 7px; background: var(--primary); padding: 0 15px; color: white; font-size: 12px; font-weight: 650; box-shadow: 0 2px 5px #1d4ed033; }
+.primary-cta:hover { background: #1f59d2; }
+.surface-card { border: 1px solid var(--border); border-radius: 10px; background: white; box-shadow: 0 1px 3px #0f172a0a; }
+.ghl-table { width: 100%; border-collapse: collapse; }
+.ghl-table th { border-bottom: 1px solid var(--border); background: #f8fafc; padding: 10px 12px; text-align: left; color: #566274; font-size: 11px; font-weight: 650; }
+.ghl-table td { border-bottom: 1px solid #edf0f4; padding: 10px 12px; color: #364152; font-size: 12px; vertical-align: middle; }
+.ghl-table tr:last-child td { border-bottom: 0; }
+.ghl-table tbody tr:hover { background: #f8fbff; }
+.pane-scroll { scrollbar-color: #c7d0dc transparent; scrollbar-width: thin; }
+
+@media (max-width: 900px) {
+  .ghl-sidebar { width: 70px; flex-basis: 70px; }
+  .ghl-brand > div:last-child, .ghl-workspace-switcher > span:not(:first-child), .ghl-sidebar-search span:nth-child(2), .ghl-sidebar-search kbd, .ghl-nav-item > span:nth-child(2), .ghl-nav-rule { display: none; }
+  .ghl-workspace-switcher, .ghl-sidebar-search { justify-content: center; }
+  .ghl-nav-item { justify-content: center; }
+  .ghl-nav-icon { width: auto; }
+  .ghl-global-search { display: none; }
 }
 
 ::selection {
