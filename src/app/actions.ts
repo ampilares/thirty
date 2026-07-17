@@ -285,7 +285,51 @@ export async function addTicketMessageAction(form: FormData) {
 
 // ---------- automations ----------
 
+const COND_OPS: AutomationCondition["op"][] = ["eq", "neq", "gt", "lt", "gte", "lte", "contains", "is_set", "not_set"];
+const ACTION_TYPE_LIST: AutomationAction["type"][] = ["create_task", "update_field", "add_tag", "add_note", "create_ticket", "send_message", "request_approval", "escalate_ticket"];
+
+/** Canvas editor path: the whole definition arrives as one JSON field. */
+function parseDefinitionJson(form: FormData): { name: string; description?: string; trigger: string; conditions: AutomationCondition[]; actions: AutomationAction[] } {
+  const raw = JSON.parse(str(form, "definition")) as {
+    name?: string; description?: string; trigger?: string;
+    conditions?: AutomationCondition[]; actions?: AutomationAction[];
+  };
+  const name = (str(form, "name") || raw.name || "").trim();
+  if (!name) throw new Error("Automation name is required");
+  if (!raw.trigger || typeof raw.trigger !== "string") throw new Error("Trigger is required");
+  const conditions: AutomationCondition[] = (raw.conditions ?? [])
+    .filter((c) => c && typeof c.field === "string" && c.field.trim() !== "" && COND_OPS.includes(c.op))
+    .slice(0, 8)
+    .map((c) => ({ field: c.field.trim(), op: c.op, ...(c.op === "is_set" || c.op === "not_set" || c.value === undefined ? {} : { value: c.value }) }));
+  const actions: AutomationAction[] = (raw.actions ?? [])
+    .filter((a) => a && ACTION_TYPE_LIST.includes(a.type))
+    .slice(0, 12)
+    .map((a) => {
+      const params: Record<string, string | number> = {};
+      for (const [k, v] of Object.entries(a.params ?? {})) {
+        if (typeof v === "string" || typeof v === "number") params[k] = v;
+      }
+      if (a.type === "create_task") {
+        params.title = String(params.title || "Follow up on {name}");
+        const due = Number(params.dueInDays);
+        params.dueInDays = Number.isFinite(due) && due >= 0 ? due : 1;
+        params.priority = String(params.priority || "normal");
+      }
+      if (a.type === "send_message") params.template = String(params.template || "custom");
+      if (a.type === "add_tag") params.tag = String(params.tag || "flagged");
+      if (a.type === "create_ticket") {
+        params.subject = String(params.subject || "Follow-up needed on {name}");
+        params.priority = String(params.priority || "normal");
+      }
+      if (a.type === "request_approval") params.title = String(params.title || "Approval requested");
+      return { type: a.type, params };
+    });
+  const description = (raw.description ?? "").trim();
+  return { name, description: description || undefined, trigger: raw.trigger, conditions, actions };
+}
+
 function parseAutomationForm(form: FormData): { name: string; description?: string; trigger: string; conditions: AutomationCondition[]; actions: AutomationAction[] } {
+  if (str(form, "definition")) return parseDefinitionJson(form);
   const conditions: AutomationCondition[] = [];
   for (let i = 0; i < 3; i++) {
     const field = str(form, `cond_field_${i}`);

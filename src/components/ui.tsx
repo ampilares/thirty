@@ -5,8 +5,8 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-neutral-500">{subtitle}</p>}
+        <h1 className="text-[22px] font-semibold tracking-tight text-neutral-900">{title}</h1>
+        {subtitle && <p className="mt-1 max-w-2xl text-sm text-neutral-500">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>
@@ -15,7 +15,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
 
 export function Card({ title, children, className = "", actions }: { title?: string; children: ReactNode; className?: string; actions?: ReactNode }) {
   return (
-    <section className={`rounded-xl border border-neutral-200 bg-white shadow-sm ${className}`}>
+    <section className={`rounded-2xl border border-neutral-200/80 bg-white shadow-sm ${className}`}>
       {(title || actions) && (
         <header className="flex items-center justify-between border-b border-neutral-100 px-4 py-2.5">
           {title && <h2 className="text-sm font-semibold text-neutral-700">{title}</h2>}
@@ -82,9 +82,9 @@ export function Badge({ value, label }: { value: string; label?: string }) {
 export function Stat({ label, value, sub, href, tone }: { label: string; value: string; sub?: string; href?: string; tone?: "danger" | "warn" | "ok" }) {
   const toneClass = tone === "danger" ? "text-red-600" : tone === "warn" ? "text-amber-600" : tone === "ok" ? "text-emerald-600" : "text-neutral-900";
   const body = (
-    <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-neutral-300">
-      <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">{label}</div>
-      <div className={`mt-1 text-2xl font-semibold tabular-nums ${toneClass}`}>{value}</div>
+    <div className="rounded-2xl border border-neutral-200/80 bg-white p-4 shadow-sm transition hover:border-indigo-200 hover:shadow-md">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">{label}</div>
+      <div className={`mt-1.5 text-2xl font-semibold tabular-nums tracking-tight ${toneClass}`}>{value}</div>
       {sub && <div className="mt-0.5 text-xs text-neutral-500">{sub}</div>}
     </div>
   );
@@ -105,9 +105,9 @@ export function Td({ children, className = "" }: { children: ReactNode; classNam
 
 export function Table({ head, children }: { head: ReactNode; children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-2xl border border-neutral-200/80 bg-white shadow-sm">
       <table className="w-full min-w-[640px] border-collapse">
-        <thead className="border-b border-neutral-200 bg-neutral-50/60">
+        <thead className="border-b border-neutral-200 bg-neutral-50/80">
           <tr>{head}</tr>
         </thead>
         <tbody className="divide-y divide-neutral-100">{children}</tbody>
@@ -117,9 +117,9 @@ export function Table({ head, children }: { head: ReactNode; children: ReactNode
 }
 
 export const inputClass =
-  "w-full rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm shadow-sm outline-none focus:border-neutral-500 focus:ring-1 focus:ring-neutral-400";
+  "w-full rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm shadow-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100";
 export const btnPrimary =
-  "inline-flex items-center gap-1.5 rounded-lg bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-neutral-700 cursor-pointer";
+  "inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-500 cursor-pointer";
 export const btnSecondary =
   "inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50 cursor-pointer";
 export const btnDanger =
